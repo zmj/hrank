@@ -18,7 +18,7 @@ type problem struct {
 }
 
 type node struct {
-	name         string
+	//name         string
 	sells        fishmask
 	edges        []*edge
 	minCostToEnd int
@@ -30,7 +30,7 @@ type edge struct {
 }
 
 type path struct {
-	name string
+	//name string
 	cost int
 	fish fishmask
 	pos  *node
@@ -46,49 +46,64 @@ func solve(rdr *bufio.Reader, wr *bufio.Writer) {
 	defer wr.Flush()
 	problem := (&parser{rdr}).parse()
 	problem.setCosts()
-	completePaths := make(chan *path, 100)
-	go problem.enumerate(completePaths)
-	solution := problem.match(completePaths)
+	matcher := &matcher{allFish: problem.allFish}
+	solution := problem.enumerate(matcher)
 	wr.WriteString(strconv.Itoa(solution))
 }
 
-func (problem *problem) match(completePaths <-chan *path) int {
-	var paths []*path
-	for {
-		p := <-completePaths
-		if p.fish == problem.allFish {
-			return p.cost
-		}
-		for _, q := range paths {
-			if p.fish|q.fish == problem.allFish {
-				cost := p.cost
-				if q.cost > cost {
-					cost = q.cost
-				}
-				return cost
-			}
-		}
-		paths = append(paths, p)
-	}
+type matcher struct {
+	allFish fishmask
+	paths   []*path
 }
 
-func (problem *problem) enumerate(completePaths chan<- *path) {
+func (m *matcher) match(p *path) (int, bool) {
+	if p.fish == m.allFish {
+		return p.cost, true
+	}
+	for _, q := range m.paths {
+		fish := p.fish | q.fish
+		if fish == q.fish {
+			return 0, false
+		}
+		if fish == m.allFish {
+			cost := p.cost
+			if q.cost > cost {
+				cost = q.cost
+			}
+			return cost, true
+		}
+	}
+	m.paths = append(m.paths, p)
+	return 0, false
+}
+
+func (problem *problem) enumerate(m *matcher) int {
 	start := &path{pos: problem.start}
 	paths := &pathHeap{start}
 	for {
 		p := heap.Pop(paths).(*path)
 		node := p.pos
 		p.fish |= node.sells
-		p.name += node.name
+		//p.name += ":" + node.name
 		if p.pos == problem.end {
-			completePaths <- p
+			cost, ok := m.match(p)
+			if ok {
+				return cost
+			}
 		}
-		for _, edge := range node.edges {
-			next := &path{
-				fish: p.fish,
-				cost: p.cost + edge.cost,
-				name: p.name,
-				pos:  edge.dest,
+		for i, edge := range node.edges {
+			var next *path
+			if i == len(node.edges)-1 {
+				next = p
+				p.cost += edge.cost
+				p.pos = edge.dest
+			} else {
+				next = &path{
+					fish: p.fish,
+					cost: p.cost + edge.cost,
+					//name: p.name,
+					pos: edge.dest,
+				}
 			}
 			heap.Push(paths, next)
 		}
@@ -149,7 +164,7 @@ func (p *parser) parse() *problem {
 	prob.allFish = (1 << uint(k)) - 1
 	for i := 0; i < n; i++ {
 		nodes[i] = &node{
-			name:         strconv.Itoa(i + 1),
+			//name:         strconv.Itoa(i + 1),
 			sells:        p.shopLine(),
 			minCostToEnd: math.MaxInt32,
 		}
