@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"container/heap"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -43,17 +45,78 @@ func solve(rdr *bufio.Reader, wr *bufio.Writer) {
 	defer wr.Flush()
 	problem := (&parser{rdr}).parse()
 	completePaths := make(chan *path, 100)
-	go enumerate(completePaths)
-	solution := match(completePaths)
+	go problem.enumerate(completePaths)
+	solution := problem.match(completePaths)
 	wr.WriteString(strconv.Itoa(solution))
 }
 
-func match(completePaths <-chan *path) int {
-
+func (problem *problem) match(completePaths <-chan *path) int {
+	shortest := make(map[fishmask]*path)
+	for {
+		path := <-completePaths
+		for fish, other := range shortest {
+			fmt.Printf("%v | %v = %v ? %v\n", path.fish, fish, path.fish|fish, problem.allFish)
+			if (path.fish | fish) == problem.allFish {
+				cost := path.cost
+				if other.cost > cost {
+					cost = other.cost
+				}
+				return cost
+			}
+		}
+		other, ok := shortest[path.fish]
+		if !ok || path.cost < other.cost {
+			shortest[path.fish] = path
+		}
+	}
 }
 
-func enumerate(completePaths chan<- *path) {
+func (problem *problem) enumerate(completePaths chan<- *path) {
+	start := &path{pos: problem.start}
+	paths := &pathHeap{start}
+	for {
+		p := heap.Pop(paths).(*path)
+		node := p.pos
+		p.fish |= node.sells
+		p.name += node.name
+		if p.pos == problem.end {
+			completePaths <- p
+		}
+		for _, edge := range node.edges {
+			next := &path{
+				fish: p.fish,
+				cost: p.cost + edge.cost,
+				name: p.name,
+				pos:  edge.dest,
+			}
+			heap.Push(paths, next)
+		}
+	}
+}
 
+type pathHeap []*path
+
+func (h pathHeap) Len() int {
+	return len(h)
+}
+
+func (h pathHeap) Less(i, j int) bool {
+	return h[i].cost < h[j].cost
+}
+
+func (h pathHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *pathHeap) Push(p interface{}) {
+	*h = append(*h, p.(*path))
+}
+
+func (h *pathHeap) Pop() interface{} {
+	old := *h
+	last := old[len(old)-1]
+	*h = old[0 : len(old)-1]
+	return last
 }
 
 type parser struct {
@@ -113,7 +176,7 @@ func (p *parser) shopLine() fishmask {
 	line := p.line()
 	var fish fishmask
 	for i := 0; i < line[0]; i++ {
-		fish |= (1 << uint(line[i+1]))
+		fish |= (1 << uint(line[i+1]-1))
 	}
 	return fish
 }
