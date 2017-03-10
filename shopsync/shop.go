@@ -59,7 +59,13 @@ func (problem *problem) match(completePaths <-chan *path) int {
 		if p.fish == problem.allFish {
 			return p.cost
 		}
+		add := true
 		for _, q := range paths {
+			fish := p.fish | q.fish
+			if fish == q.fish {
+				add = false
+				break
+			}
 			if p.fish|q.fish == problem.allFish {
 				cost := p.cost
 				if q.cost > cost {
@@ -68,7 +74,9 @@ func (problem *problem) match(completePaths <-chan *path) int {
 				return cost
 			}
 		}
-		paths = append(paths, p)
+		if add {
+			paths = append(paths, p)
+		}
 	}
 }
 
