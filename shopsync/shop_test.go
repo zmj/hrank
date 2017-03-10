@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-func TestSolve0(t *testing.T) {
-	answer := tSolve("example")
+func TestSolve1(t *testing.T) {
+	answer := tSolve("example1")
 	if answer != 30 {
 		t.Fail()
 	}
@@ -17,6 +17,13 @@ func TestSolve0(t *testing.T) {
 func TestSolve5(t *testing.T) {
 	answer := tSolve("example5")
 	if answer != 1571 {
+		t.Fail()
+	}
+}
+
+func TestSolve7(t *testing.T) {
+	answer := tSolve("example7")
+	if answer != 5242 {
 		t.Fail()
 	}
 }

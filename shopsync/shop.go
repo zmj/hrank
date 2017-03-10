@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"container/heap"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -17,9 +18,10 @@ type problem struct {
 }
 
 type node struct {
-	name  string
-	sells fishmask
-	edges []*edge
+	name         string
+	sells        fishmask
+	edges        []*edge
+	minCostToEnd int
 }
 
 type edge struct {
@@ -43,6 +45,7 @@ func main() {
 func solve(rdr *bufio.Reader, wr *bufio.Writer) {
 	defer wr.Flush()
 	problem := (&parser{rdr}).parse()
+	problem.setCosts()
 	completePaths := make(chan *path, 100)
 	go problem.enumerate(completePaths)
 	solution := problem.match(completePaths)
@@ -50,30 +53,22 @@ func solve(rdr *bufio.Reader, wr *bufio.Writer) {
 }
 
 func (problem *problem) match(completePaths <-chan *path) int {
-	shortest := make(map[fishmask]*path)
+	var paths []*path
 	for {
 		p := <-completePaths
-		var minMatch *path
-		for fish, other := range shortest {
-			//fmt.Printf("%v + %v\n", p.name, other.name)
-			//fmt.Printf("%v | %v = %v ? %v\n", p.fish, fish, p.fish|fish, problem.allFish)
-			if (p.fish | fish) == problem.allFish {
-				if minMatch == nil || other.cost < minMatch.cost {
-					minMatch = other
+		if p.fish == problem.allFish {
+			return p.cost
+		}
+		for _, q := range paths {
+			if p.fish|q.fish == problem.allFish {
+				cost := p.cost
+				if q.cost > cost {
+					cost = q.cost
 				}
+				return cost
 			}
 		}
-		if minMatch != nil {
-			cost := p.cost
-			if minMatch.cost > cost {
-				cost = minMatch.cost
-			}
-			return cost
-		}
-		other, ok := shortest[p.fish]
-		if !ok || p.cost < other.cost {
-			shortest[p.fish] = p
-		}
+		paths = append(paths, p)
 	}
 }
 
@@ -86,7 +81,6 @@ func (problem *problem) enumerate(completePaths chan<- *path) {
 		p.fish |= node.sells
 		p.name += node.name
 		if p.pos == problem.end {
-			completePaths <- p
 			completePaths <- p
 		}
 		for _, edge := range node.edges {
@@ -107,8 +101,12 @@ func (h pathHeap) Len() int {
 	return len(h)
 }
 
+func (p *path) val() int {
+	return p.cost + p.pos.minCostToEnd
+}
+
 func (h pathHeap) Less(i, j int) bool {
-	return h[i].cost < h[j].cost
+	return h[i].val() < h[j].val()
 }
 
 func (h pathHeap) Swap(i, j int) {
@@ -126,6 +124,20 @@ func (h *pathHeap) Pop() interface{} {
 	return last
 }
 
+func (problem *problem) setCosts() {
+	var set func(*node)
+	set = func(n *node) {
+		for _, edge := range n.edges {
+			if n.minCostToEnd+edge.cost < edge.dest.minCostToEnd {
+				edge.dest.minCostToEnd = n.minCostToEnd + edge.cost
+				set(edge.dest)
+			}
+		}
+	}
+	problem.end.minCostToEnd = 0
+	set(problem.end)
+}
+
 type parser struct {
 	rdr *bufio.Reader
 }
@@ -137,8 +149,9 @@ func (p *parser) parse() *problem {
 	prob.allFish = (1 << uint(k)) - 1
 	for i := 0; i < n; i++ {
 		nodes[i] = &node{
-			name:  strconv.Itoa(i + 1),
-			sells: p.shopLine(),
+			name:         strconv.Itoa(i + 1),
+			sells:        p.shopLine(),
+			minCostToEnd: math.MaxInt32,
 		}
 	}
 	for i := 0; i < m; i++ {
