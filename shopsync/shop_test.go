@@ -22,9 +22,15 @@ func TestSolve5(t *testing.T) {
 }
 
 func TestSolve7(t *testing.T) {
-	return
 	answer := tSolve("example7")
 	if answer != 5242 {
+		t.Fail()
+	}
+}
+
+func TestSolve20(t *testing.T) {
+	answer := tSolve("example20")
+	if answer != 144103 {
 		t.Fail()
 	}
 }

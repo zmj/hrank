@@ -44,14 +44,14 @@ func solve(rdr *bufio.Reader, wr *bufio.Writer) {
 	defer wr.Flush()
 	problem := (&parser{rdr}).parse()
 	problem.setCosts()
-	completePaths := make(chan *path, 100)
+	completePaths := make(chan path)
 	go problem.enumerate(completePaths)
 	solution := problem.match(completePaths)
 	wr.WriteString(strconv.Itoa(solution))
 }
 
-func (problem *problem) match(completePaths <-chan *path) int {
-	var paths []*path
+func (problem problem) match(completePaths <-chan path) int {
+	var paths []path
 	for {
 		p := <-completePaths
 		if p.fish == problem.allFish {
@@ -78,39 +78,34 @@ func (problem *problem) match(completePaths <-chan *path) int {
 	}
 }
 
-func (problem *problem) enumerate(completePaths chan<- *path) {
-	start := &path{pos: problem.start}
+func (problem problem) enumerate(completePaths chan<- path) {
+	start := path{pos: problem.start}
 	paths := &pathHeap{start}
 	for {
-		p := heap.Pop(paths).(*path)
+		p := heap.Pop(paths).(path)
 		node := p.pos
 		p.fish |= node.sells
-		reuse := true
 		if p.pos == problem.end {
 			completePaths <- p
-			reuse = false
 		}
-		for i, edge := range node.edges {
-			var next *path
-			if reuse && i == len(node.edges)-1 {
-				next = p
-				p.cost += edge.cost
-				p.pos = edge.dest
-			} else {
-				next = &path{fish: p.fish, cost: p.cost + edge.cost, pos: edge.dest}
+		for _, edge := range node.edges {
+			next := path{
+				fish: p.fish,
+				cost: p.cost + edge.cost,
+				pos:  edge.dest,
 			}
 			heap.Push(paths, next)
 		}
 	}
 }
 
-type pathHeap []*path
+type pathHeap []path
 
 func (h pathHeap) Len() int {
 	return len(h)
 }
 
-func (p *path) val() int {
+func (p path) val() int {
 	return p.cost + p.pos.minCostToEnd
 }
 
@@ -123,7 +118,7 @@ func (h pathHeap) Swap(i, j int) {
 }
 
 func (h *pathHeap) Push(p interface{}) {
-	*h = append(*h, p.(*path))
+	*h = append(*h, p.(path))
 }
 
 func (h *pathHeap) Pop() interface{} {
