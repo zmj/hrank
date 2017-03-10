@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"container/heap"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -18,7 +17,7 @@ type problem struct {
 }
 
 type node struct {
-	name  string
+	//name  string
 	sells fishmask
 	edges []*edge
 }
@@ -29,7 +28,7 @@ type edge struct {
 }
 
 type path struct {
-	name string
+	//name string
 	cost int
 	fish fishmask
 	pos  *node
@@ -55,7 +54,7 @@ func (problem *problem) match(completePaths <-chan *path) int {
 	for {
 		path := <-completePaths
 		for fish, other := range shortest {
-			fmt.Printf("%v | %v = %v ? %v\n", path.fish, fish, path.fish|fish, problem.allFish)
+			//fmt.Printf("%v | %v = %v ? %v\n", path.fish, fish, path.fish|fish, problem.allFish)
 			if (path.fish | fish) == problem.allFish {
 				cost := path.cost
 				if other.cost > cost {
@@ -78,7 +77,7 @@ func (problem *problem) enumerate(completePaths chan<- *path) {
 		p := heap.Pop(paths).(*path)
 		node := p.pos
 		p.fish |= node.sells
-		p.name += node.name
+		//p.name += node.name
 		if p.pos == problem.end {
 			completePaths <- p
 		}
@@ -86,8 +85,8 @@ func (problem *problem) enumerate(completePaths chan<- *path) {
 			next := &path{
 				fish: p.fish,
 				cost: p.cost + edge.cost,
-				name: p.name,
-				pos:  edge.dest,
+				//name: p.name,
+				pos: edge.dest,
 			}
 			heap.Push(paths, next)
 		}
@@ -130,7 +129,7 @@ func (p *parser) parse() *problem {
 	prob.allFish = (1 << uint(k)) - 1
 	for i := 0; i < n; i++ {
 		nodes[i] = &node{
-			name:  strconv.Itoa(i + 1),
+			//name:  strconv.Itoa(i + 1),
 			sells: p.shopLine(),
 		}
 	}
