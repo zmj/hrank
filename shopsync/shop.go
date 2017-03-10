@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -23,12 +22,12 @@ type node struct {
 }
 
 type edge struct {
-	src  *node
 	dest *node
 	cost int
 }
 
 type path struct {
+	name string
 	cost int
 	fish fishmask
 	pos  *node
@@ -42,9 +41,19 @@ func main() {
 
 func solve(rdr *bufio.Reader, wr *bufio.Writer) {
 	defer wr.Flush()
-	prob := (&parser{rdr}).parse()
-	wr.WriteString(fmt.Sprintf("%v\n", prob.start.name))
-	wr.WriteString(fmt.Sprintf("%v\n", prob.end.name))
+	problem := (&parser{rdr}).parse()
+	completePaths := make(chan *path, 100)
+	go enumerate(completePaths)
+	solution := match(completePaths)
+	wr.WriteString(strconv.Itoa(solution))
+}
+
+func match(completePaths <-chan *path) int {
+
+}
+
+func enumerate(completePaths chan<- *path) {
+
 }
 
 type parser struct {
@@ -57,21 +66,23 @@ func (p *parser) parse() *problem {
 	nodes := make([]*node, n)
 	prob.allFish = (1 << uint(k)) - 1
 	for i := 0; i < n; i++ {
-		name := strconv.Itoa(i + 1)
 		nodes[i] = &node{
-			name:  name,
+			name:  strconv.Itoa(i + 1),
 			sells: p.shopLine(),
 		}
 	}
 	for i := 0; i < m; i++ {
 		src, dest, cost := p.edgeLine()
 		srcNode := nodes[src-1]
-		edge := &edge{
-			src:  srcNode,
-			dest: nodes[dest-1],
+		destNode := nodes[dest-1]
+		srcNode.edges = append(srcNode.edges, &edge{
+			dest: destNode,
 			cost: cost,
-		}
-		srcNode.edges = append(srcNode.edges, edge)
+		})
+		destNode.edges = append(destNode.edges, &edge{
+			dest: srcNode,
+			cost: cost,
+		})
 	}
 	prob.start = nodes[0]
 	prob.end = nodes[len(nodes)-1]
@@ -80,7 +91,11 @@ func (p *parser) parse() *problem {
 
 func (p *parser) firstLine() (n, m, k int) {
 	line := p.line()
-	return line[0], line[1], line[2]
+	n, m, k = line[0], line[1], line[2]
+	if n < 2 || m < 1 || k < 0 {
+		panic("param out of range")
+	}
+	return
 }
 
 func (p *parser) line() []int {
@@ -103,7 +118,11 @@ func (p *parser) shopLine() fishmask {
 	return fish
 }
 
-func (p *parser) edgeLine() (src, dst, cost int) {
+func (p *parser) edgeLine() (src, dest, cost int) {
 	line := p.line()
-	return line[0], line[1], line[2]
+	src, dest, cost = line[0], line[1], line[2]
+	if src == dest {
+		panic("circular edge")
+	}
+	return
 }
