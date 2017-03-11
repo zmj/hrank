@@ -18,6 +18,7 @@ type problem struct {
 }
 
 type node struct {
+	name         string
 	sells        fishmask
 	edges        []*edge
 	minCostToEnd int
@@ -29,6 +30,7 @@ type edge struct {
 }
 
 type path struct {
+	name string
 	cost int
 	fish fishmask
 	pos  *node
@@ -81,22 +83,36 @@ func (problem problem) match(completePaths <-chan path) int {
 func (problem problem) enumerate(completePaths chan<- path) {
 	start := path{pos: problem.start}
 	paths := &pathHeap{start}
-	for {
+	best := make(map[step]int)
+	for paths.Len() > 0 {
 		p := heap.Pop(paths).(path)
-		node := p.pos
-		p.fish |= node.sells
+		p.fish |= p.pos.sells
+		p.name += ":" + p.pos.name
 		if p.pos == problem.end {
 			completePaths <- p
 		}
-		for _, edge := range node.edges {
+		for _, edge := range p.pos.edges {
+			nextCost := p.cost + edge.cost
+			step := step{p.fish, edge.dest}
+			bestCost, ok := best[step]
+			if ok && bestCost < nextCost {
+				continue
+			}
 			next := path{
+				name: p.name,
 				fish: p.fish,
-				cost: p.cost + edge.cost,
+				cost: nextCost,
 				pos:  edge.dest,
 			}
+			best[step] = nextCost
 			heap.Push(paths, next)
 		}
 	}
+}
+
+type step struct {
+	fish fishmask
+	pos  *node
 }
 
 type pathHeap []path
@@ -153,6 +169,7 @@ func (p *parser) parse() *problem {
 	prob.allFish = (1 << uint(k)) - 1
 	for i := 0; i < n; i++ {
 		nodes[i] = &node{
+			name:         strconv.Itoa(i + 1),
 			sells:        p.shopLine(),
 			minCostToEnd: math.MaxInt32,
 		}
