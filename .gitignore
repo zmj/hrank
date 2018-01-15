@@ -6,6 +6,8 @@
 # Folders
 _obj
 _test
+.vscode
+bin
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -18,6 +20,7 @@ _cgo_gotypes.go
 _cgo_export.*
 
 _testmain.go
+obj
 
 *.exe
 *.test
