@@ -38,6 +38,24 @@ func (p *Parser) Ints(count int) ([]int, error) {
 	return values, err
 }
 
+func (p *Parser) Uint64s(n int) ([]uint64, error) {
+	s, err := p.readLine()
+	if err != nil {
+		return nil, err
+	}
+	ss := strings.Split(s, " ")
+	if len(ss) != n {
+		return nil, fmt.Errorf("expected %v values, got %v", n, len(ss))
+	}
+	values := make([]uint64, n)
+	var v uint64
+	for i, s := range ss {
+		v, err = strconv.ParseUint(s, 10, 64)
+		values[i] = v
+	}
+	return values, err
+}
+
 func NewParser(r io.Reader) *Parser {
 	return &Parser{bufio.NewScanner(r)}
 }
