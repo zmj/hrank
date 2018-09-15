@@ -12,6 +12,10 @@ type Parser struct {
 	scanner *bufio.Scanner
 }
 
+func (p *Parser) String() (string, error) {
+	return p.readLine()
+}
+
 func (p *Parser) Int() (int, error) {
 	s, err := p.readLine()
 	if err != nil {
